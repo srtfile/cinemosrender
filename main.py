@@ -435,7 +435,7 @@ HTML = """<!DOCTYPE html>
         <input id="episode" type="number" value="1" min="1"/>
       </div>
     </div>
-    <button class="btn-resolve" id="btn" onclick="doResolve()">⚡ Resolve Stream</button>
+    <button class="btn-resolve" id="btn" onclick="runResolve()">⚡ Resolve Stream</button>
   </div>
   <div class="spinner" id="spinner">
     <div class="spin-ring"></div>
@@ -455,7 +455,7 @@ function esc(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-async function doResolve(){
+async function runResolve(){
   const urlVal=document.getElementById('url').value.trim();
   if(!urlVal){alert('Please enter a URL or TMDB ID');return;}
   const type=document.getElementById('type').value;
@@ -472,18 +472,24 @@ async function doResolve(){
   if(type==='tv') apiUrl+=`&season=${season}&episode=${episode}`;
 
   try{
-    const res=await fetch(apiUrl);
-    const d=await res.json();
-    result.innerHTML=render(d);
+    const res = await fetch(apiUrl);
+    const text = await res.text();
+    let d;
+    try{ d = JSON.parse(text); }
+    catch(je){
+      result.innerHTML = '<div style="padding:24px;color:#e05050;background:#1a0d0d;border-radius:12px;margin-top:20px">⚠️ Server returned unexpected response:<br><pre style="margin-top:8px;font-size:.75rem;overflow:auto">'+text.slice(0,500)+'</pre></div>';
+      return;
+    }
+    result.innerHTML = renderResult(d);
   }catch(e){
-    result.innerHTML=`<div class="info-banner err"><div class="status-icon">❌</div><div><div class="info-title">Request Failed</div><div class="err-msg">${esc(e.message)}</div></div></div>`;
+    result.innerHTML = '<div style="padding:24px;color:#e05050;background:#1a0d0d;border-radius:12px;margin-top:20px">❌ Request failed: '+e.message+'</div>';
   }finally{
-    btn.disabled=false;
+    btn.disabled = false;
     spinner.classList.remove('on');
   }
 }
 
-function render(d){
+function renderResult(d){
   const status=d.status||'unknown';
   const isOk=status==='resolved';
   const isErr=status.includes('error')||status.includes('fail');
