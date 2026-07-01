@@ -325,80 +325,148 @@ HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CinemaOS Resolver</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',sans-serif;background:#0d0d0d;color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px}
-h1{font-size:1.8rem;color:#e50914;margin-bottom:6px}
-p.sub{color:#888;margin-bottom:30px;font-size:.95rem}
-.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:28px;width:100%;max-width:580px}
-label{display:block;font-size:.82rem;color:#aaa;margin-top:14px;margin-bottom:4px}
-input,select{width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#e0e0e0;font-size:.95rem;outline:none}
-input:focus,select:focus{border-color:#e50914}
-.row{display:flex;gap:12px}.row>div{flex:1}
-button{margin-top:22px;width:100%;padding:12px;background:#e50914;color:#fff;font-size:1rem;font-weight:600;border:none;border-radius:8px;cursor:pointer}
-button:hover{background:#c0070f}
-button:disabled{background:#444;cursor:not-allowed}
-#result{margin-top:28px;width:100%;max-width:580px}
-.box{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:20px;margin-bottom:16px}
-.box h2{font-size:.95rem;color:#aaa;margin-bottom:12px}
-.meta-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:.87rem}
-.meta-grid span:nth-child(odd){color:#888}
-.url-item{background:#111;border:1px solid #222;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.82rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
-.url-item a{color:#e50914;text-decoration:none;flex:1;word-break:break-all}
-.url-item a:hover{text-decoration:underline}
-.copy-btn{background:#2a2a2a;color:#ccc;border:none;border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;white-space:nowrap}
-.copy-btn:hover{background:#e50914;color:#fff}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:600;margin-left:8px}
-.badge.ok{background:#1a3a1a;color:#4caf50}
-.badge.none{background:#2a2a1a;color:#888}
-.err{color:#e50914;font-size:.88rem;margin-top:10px}
-.spinner{display:none;text-align:center;color:#888;margin-top:20px;font-size:.9rem}
-.spinner.on{display:block}
-.tag{display:inline-block;padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:700;margin-bottom:12px}
-.tag.resolved{background:#1a3a1a;color:#4caf50}
-.tag.error{background:#3a1a1a;color:#e50914}
-.tag.no_sources{background:#2a2a1a;color:#aaa}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh;padding:0 0 60px}
+
+  /* ── Header ── */
+  header{background:linear-gradient(135deg,#1a0000 0%,#0d0d0d 60%);border-bottom:1px solid #2a0000;padding:32px 24px 28px;text-align:center}
+  header h1{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-0.5px}
+  header h1 span{color:#e50914}
+  header p{color:#777;margin-top:6px;font-size:.93rem}
+
+  /* ── Search form ── */
+  .search-wrap{max-width:680px;margin:32px auto 0;padding:0 16px}
+  .search-box{background:#161616;border:1px solid #2a2a2a;border-radius:16px;padding:24px}
+  .field-row{display:flex;gap:12px;flex-wrap:wrap}
+  .field{flex:1;min-width:140px}
+  .field.grow{flex:2;min-width:260px}
+  label{display:block;font-size:.78rem;color:#777;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+  input,select{width:100%;padding:11px 14px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:10px;color:#e0e0e0;font-size:.93rem;outline:none;transition:border .15s}
+  input:focus,select:focus{border-color:#e50914}
+  select option{background:#161616}
+  .btn-resolve{margin-top:16px;width:100%;padding:13px;background:#e50914;color:#fff;font-size:1rem;font-weight:700;border:none;border-radius:10px;cursor:pointer;letter-spacing:.02em;transition:background .15s}
+  .btn-resolve:hover{background:#c0070f}
+  .btn-resolve:disabled{background:#2a2a2a;color:#555;cursor:not-allowed}
+
+  /* ── Spinner ── */
+  .spinner{display:none;text-align:center;padding:32px 0;color:#555;font-size:.9rem}
+  .spinner.on{display:block}
+  .spin-ring{width:36px;height:36px;border:3px solid #222;border-top-color:#e50914;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── Results wrapper ── */
+  #result{max-width:680px;margin:28px auto 0;padding:0 16px}
+
+  /* ── Info banner ── */
+  .info-banner{border-radius:14px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+  .info-banner.ok{background:#0d1f0d;border:1px solid #1a3a1a}
+  .info-banner.err{background:#1f0d0d;border:1px solid #3a1a1a}
+  .info-banner.warn{background:#1a1a0d;border:1px solid #3a3a1a}
+  .status-icon{font-size:2rem;flex-shrink:0}
+  .info-title{font-size:1.1rem;font-weight:700;color:#fff}
+  .info-meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:3px 10px;font-size:.78rem;color:#aaa}
+  .chip b{color:#e0e0e0}
+  .err-msg{color:#e05050;font-size:.85rem;margin-top:8px}
+
+  /* ── Section ── */
+  .section{margin-bottom:16px}
+  .section-header{display:flex;align-items:center;gap:10px;padding:12px 0 10px;border-bottom:1px solid #1a1a1a;margin-bottom:12px}
+  .section-icon{font-size:1.1rem}
+  .section-title{font-size:.9rem;font-weight:700;color:#ccc;flex:1}
+  .section-count{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:999px;padding:2px 10px;font-size:.75rem;color:#888;font-weight:600}
+
+  /* ── Stream cards ── */
+  .stream-grid{display:flex;flex-direction:column;gap:8px}
+  .stream-card{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color .15s}
+  .stream-card:hover{border-color:#333}
+  .stream-num{background:#1a1a1a;border:1px solid #252525;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#666;flex-shrink:0}
+  .stream-info{flex:1;min-width:0}
+  .stream-type{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+  .stream-type.m3u8{color:#4caf50}
+  .stream-type.mpd{color:#2196f3}
+  .stream-type.mp4{color:#ff9800}
+  .stream-type.other{color:#9c27b0}
+  .stream-url{font-size:.78rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stream-actions{display:flex;gap:6px;flex-shrink:0}
+  .btn-copy{background:#1a1a1a;color:#aaa;border:1px solid #2a2a2a;border-radius:7px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .btn-copy:hover{background:#e50914;color:#fff;border-color:#e50914}
+  .btn-open{background:transparent;color:#555;border:1px solid #222;border-radius:7px;padding:6px 10px;font-size:.75rem;cursor:pointer;text-decoration:none;display:flex;align-items:center;transition:all .15s}
+  .btn-open:hover{color:#e0e0e0;border-color:#444}
+
+  /* ── Stats bar ── */
+  .stats-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+  .stat{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:10px 16px;font-size:.8rem;color:#666;flex:1;text-align:center;min-width:100px}
+  .stat b{display:block;font-size:1.1rem;color:#ccc;margin-bottom:2px}
+
+  /* ── Empty ── */
+  .empty{text-align:center;padding:40px 0;color:#444;font-size:.9rem}
 </style>
 </head>
 <body>
-<h1>🎬 CinemaOS Resolver</h1>
-<p class="sub">Resolve stream URLs from CinemaOS-style players</p>
 
-<div class="card">
-  <label>Player URL or TMDB ID</label>
-  <input id="url" type="text" placeholder="https://cinemaos.tech/player/254  or  254"/>
+<header>
+  <h1>🎬 Cinema<span>OS</span> Resolver</h1>
+  <p>Resolve stream URLs from CinemaOS-style players instantly</p>
+</header>
 
-  <label>Media Type</label>
-  <select id="type">
-    <option value="movie">Movie</option>
-    <option value="tv">TV Show</option>
-  </select>
-
-  <div class="row" id="ep-row" style="display:none">
-    <div><label>Season</label><input id="season" type="number" value="1" min="1"/></div>
-    <div><label>Episode</label><input id="episode" type="number" value="1" min="1"/></div>
+<div class="search-wrap">
+  <div class="search-box">
+    <div class="field-row">
+      <div class="field grow">
+        <label>Player URL or TMDB ID</label>
+        <input id="url" type="text" placeholder="https://cinemaos.tech/player/254  or  254"/>
+      </div>
+      <div class="field">
+        <label>Media Type</label>
+        <select id="type" onchange="toggleEp()">
+          <option value="movie">🎬 Movie</option>
+          <option value="tv">📺 TV Show</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="ep-row" style="display:none;margin-top:12px">
+      <div class="field">
+        <label>Season</label>
+        <input id="season" type="number" value="1" min="1"/>
+      </div>
+      <div class="field">
+        <label>Episode</label>
+        <input id="episode" type="number" value="1" min="1"/>
+      </div>
+    </div>
+    <button class="btn-resolve" id="btn" onclick="doResolve()">⚡ Resolve Stream</button>
   </div>
-
-  <button id="btn" onclick="resolve()">Resolve Stream</button>
-  <div class="spinner" id="spinner">⏳ Resolving… please wait</div>
+  <div class="spinner" id="spinner">
+    <div class="spin-ring"></div>
+    Resolving stream sources… this may take a few seconds
+  </div>
 </div>
 
 <div id="result"></div>
 
 <script>
-document.getElementById('type').addEventListener('change',function(){
-  document.getElementById('ep-row').style.display=this.value==='tv'?'flex':'none';
-});
+function toggleEp(){
+  document.getElementById('ep-row').style.display=
+    document.getElementById('type').value==='tv'?'flex':'none';
+}
 
-async function resolve(){
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function doResolve(){
   const urlVal=document.getElementById('url').value.trim();
-  if(!urlVal){alert('Enter a URL or TMDB ID');return;}
+  if(!urlVal){alert('Please enter a URL or TMDB ID');return;}
   const type=document.getElementById('type').value;
   const season=document.getElementById('season').value;
   const episode=document.getElementById('episode').value;
   const btn=document.getElementById('btn');
   const spinner=document.getElementById('spinner');
   const result=document.getElementById('result');
-  btn.disabled=true;spinner.classList.add('on');result.innerHTML='';
+  btn.disabled=true;
+  spinner.classList.add('on');
+  result.innerHTML='';
 
   let apiUrl=`/resolve?url=${encodeURIComponent(urlVal)}&type=${type}`;
   if(type==='tv') apiUrl+=`&season=${season}&episode=${episode}`;
@@ -406,66 +474,105 @@ async function resolve(){
   try{
     const res=await fetch(apiUrl);
     const d=await res.json();
-    result.innerHTML=renderResult(d);
+    result.innerHTML=render(d);
   }catch(e){
-    result.innerHTML=`<p class="err">❌ ${e.message}</p>`;
+    result.innerHTML=`<div class="info-banner err"><div class="status-icon">❌</div><div><div class="info-title">Request Failed</div><div class="err-msg">${esc(e.message)}</div></div></div>`;
   }finally{
-    btn.disabled=false;spinner.classList.remove('on');
+    btn.disabled=false;
+    spinner.classList.remove('on');
   }
 }
 
-function renderResult(d){
+function render(d){
   const status=d.status||'unknown';
-  const tagClass=status==='resolved'?'resolved':status.includes('error')||status.includes('fail')?'error':'no_sources';
-  const tagLabel=status==='resolved'?'✅ Resolved':status==='no_sources_found'?'⚠️ No Sources':'❌ '+status;
+  const isOk=status==='resolved';
+  const isErr=status.includes('error')||status.includes('fail');
+  const bannerClass=isOk?'ok':isErr?'err':'warn';
+  const icon=isOk?'✅':isErr?'❌':'⚠️';
+  const statusLabel=isOk?'Resolved':status==='no_sources_found'?'No Sources Found':status;
+  const meta=d.metadata||{};
+  const ids=d.ids||{};
 
-  let html=`<div class="box">
-    <span class="tag ${tagClass}">${tagLabel}</span>`;
-
-  if(d.metadata&&(d.metadata.title||d.metadata.year)){
-    html+=`<div class="meta-grid">
-      <span>Title</span><span>${d.metadata.title||'—'}</span>
-      <span>Year</span><span>${d.metadata.year||'—'}</span>
-      <span>IMDB</span><span>${d.metadata.imdb_id||'—'}</span>
-      <span>Type</span><span>${(d.ids||{}).type||'—'}</span>
-    </div>`;
-  }
-  if(d.errors&&d.errors.length){
-    html+=d.errors.map(e=>`<p class="err" style="margin-top:8px">⚠️ ${e}</p>`).join('');
-  }
-  html+=`</div>`;
+  let html=`<div class="info-banner ${bannerClass}">
+    <div class="status-icon">${icon}</div>
+    <div style="flex:1;min-width:0">
+      <div class="info-title">${esc(meta.title||'Unknown Title')} ${meta.year?'('+esc(meta.year)+')':''}</div>
+      <div class="info-meta">
+        ${meta.imdb_id?`<span class="chip">IMDb <b>${esc(meta.imdb_id)}</b></span>`:''}
+        <span class="chip">Type <b>${esc(ids.type||'—')}</b></span>
+        ${ids.season?`<span class="chip">S<b>${esc(ids.season)}</b> E<b>${esc(ids.episode||'?')}</b></span>`:''}
+        <span class="chip">Status <b>${esc(statusLabel)}</b></span>
+      </div>
+      ${(d.errors||[]).map(e=>`<div class="err-msg">⚠️ ${esc(e)}</div>`).join('')}
+    </div>
+  </div>`;
 
   const mu=d.media_urls||{};
   const groups=[
-    ['m3u8','🎞 M3U8 Streams'],['mpd','📦 MPD Streams'],
-    ['mp4','🎬 MP4 Files'],['decoded_proxy_targets','🔗 Proxy Targets'],
-    ['iframe_or_embed','🖼 Embeds'],['other_resources','📎 Other'],
+    ['m3u8','🎞','HLS Streams','m3u8'],
+    ['mpd','📦','DASH Streams','mpd'],
+    ['mp4','🎬','MP4 Files','mp4'],
+    ['decoded_proxy_targets','🔗','Proxy Targets','other'],
+    ['iframe_or_embed','🖼','Embeds','other'],
+    ['other_resources','📎','Other Resources','other'],
   ];
-  for(const [key,label] of groups){
+
+  let totalStreams=0;
+  let sectionsHtml='';
+
+  for(const [key,icon2,label,typeClass] of groups){
     const urls=mu[key]||[];
     if(!urls.length) continue;
-    html+=`<div class="box"><h2>${label} <span class="badge ok">${urls.length}</span></h2>`;
+    totalStreams+=urls.length;
+    sectionsHtml+=`<div class="section">
+      <div class="section-header">
+        <span class="section-icon">${icon2}</span>
+        <span class="section-title">${label}</span>
+        <span class="section-count">${urls.length}</span>
+      </div>
+      <div class="stream-grid">`;
     urls.forEach((u,i)=>{
-      html+=`<div class="url-item">
-        <a href="${u}" target="_blank" rel="noopener">Stream ${i+1}: ${u}</a>
-        <button class="copy-btn" onclick="cp('${u.replace(/'/g,"\\'")}',this)">Copy</button>
+      const ext=u.includes('.m3u8')?'M3U8':u.includes('.mpd')?'MPD':u.includes('.mp4')?'MP4':'URL';
+      const safe=esc(u);
+      const safeJs=u.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      sectionsHtml+=`<div class="stream-card">
+        <div class="stream-num">${i+1}</div>
+        <div class="stream-info">
+          <div class="stream-type ${typeClass}">${ext}</div>
+          <div class="stream-url" title="${safe}">${safe}</div>
+        </div>
+        <div class="stream-actions">
+          <button class="btn-copy" onclick="cp('${safeJs}',this)">Copy</button>
+          <a class="btn-open" href="${safe}" target="_blank" rel="noopener" title="Open">↗</a>
+        </div>
       </div>`;
     });
-    html+=`</div>`;
+    sectionsHtml+=`</div></div>`;
   }
 
-  if(!Object.values(mu).some(v=>v.length)){
-    html+=`<div class="box"><p style="color:#888;font-size:.9rem">No playable stream URLs were found for this title.</p></div>`;
+  if(!totalStreams){
+    sectionsHtml=`<div class="empty">😕 No playable stream URLs were found for this title.</div>`;
   }
 
-  html+=`<div class="box"><h2>⏱ ${d.elapsed_ms||0}ms &nbsp;·&nbsp; ${(d.request_steps||[]).length} requests</h2></div>`;
+  html+=sectionsHtml;
+
+  html+=`<div class="stats-bar">
+    <div class="stat"><b>${totalStreams}</b>streams found</div>
+    <div class="stat"><b>${d.elapsed_ms||0}ms</b>resolve time</div>
+    <div class="stat"><b>${(d.request_steps||[]).length}</b>API requests</div>
+  </div>`;
+
   return html;
 }
 
 function cp(url,btn){
   navigator.clipboard.writeText(url);
-  btn.textContent='Copied!';
-  setTimeout(()=>btn.textContent='Copy',2000);
+  const orig=btn.textContent;
+  btn.textContent='✓ Copied';
+  btn.style.background='#1a3a1a';
+  btn.style.color='#4caf50';
+  btn.style.borderColor='#1a3a1a';
+  setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.color='';btn.style.borderColor='';},2000);
 }
 </script>
 </body>
