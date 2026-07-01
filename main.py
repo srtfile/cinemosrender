@@ -1,9 +1,9 @@
 """
 CinemaOS-style stream resolver — Render-deployable FastAPI service.
 Endpoints:
-  GET /          → HTML UI
-  GET /resolve   → JSON API
-  GET /health    → health check
+  GET /          -> HTML UI
+  GET /resolve   -> JSON API
+  GET /health    -> health check
 """
 
 from __future__ import annotations
@@ -17,9 +17,8 @@ import os
 import re
 import time
 import traceback
-from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, unquote, urlparse
 
 import requests
 from fastapi import FastAPI, Query
@@ -27,15 +26,13 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 app = FastAPI(title="CinemaOS Stream Resolver")
 
-# ── Constants ──────────────────────────────────────────────────────────────────
-DEFAULT_TEST_URL  = "https://cinemaos.tech/player/254"
-BASE_ORIGIN       = "https://cinemaos.tech"
-GT_VALUE          = "2549b22d9bf0d91847a2811baac98d0079e02dba592aea94"
-MAX_HINT_URLS     = 200
+DEFAULT_TEST_URL = "https://cinemaos.tech/player/254"
+BASE_ORIGIN      = "https://cinemaos.tech"
+GT_VALUE         = "2549b22d9bf0d91847a2811baac98d0079e02dba592aea94"
 
 HASH_PRIMARY   = "a7f3b9c2e8d4f1a6b5c9e2d7f4a8b3c6e1d9f7a4b2c8e5d3f9a6b4c1e7d2f8a5"
 HASH_SECONDARY = "d3f8a5b2c9e6d1f7a4b8c5e2d9f3a6b1c7e4d8f2a9b5c3e7d4f1a8b6c2e9d5f3"
-DEFAULT_ENC_KEY= "a1b2c3d4e4f6477658455678901477567890abcdef1234567890abcdef123456"
+DEFAULT_ENC_KEY = "a1b2c3d4e4f6477658455678901477567890abcdef1234567890abcdef123456"
 
 SCRAPERS = [
     ("s7","Vidrock"),("n3","Vidzee-Duke"),("k9","Icefy"),("q4","Multimovies"),
@@ -49,11 +46,11 @@ MEDIA_RE = re.compile(
 )
 IFRAME_RE = re.compile(r"<iframe[^>]+src=[\"']([^\"']+)", re.IGNORECASE)
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-def now_ms() -> int:
+
+def now_ms():
     return int(time.time() * 1000)
 
-def add_unique(items: list, value: Any) -> None:
+def add_unique(items, value):
     if value and value not in items:
         items.append(value)
 
@@ -74,10 +71,10 @@ def make_session():
 
 def generate_content_hash(tmdb_id, imdb_id=None, season_id=None, episode_id=None):
     parts = []
-    if tmdb_id:               parts.append(f"tmdbId:{tmdb_id}")
-    if imdb_id:               parts.append(f"imdbId:{imdb_id}")
-    if season_id  not in (None,""): parts.append(f"seasonId:{season_id}")
-    if episode_id not in (None,""): parts.append(f"episodeId:{episode_id}")
+    if tmdb_id: parts.append(f"tmdbId:{tmdb_id}")
+    if imdb_id: parts.append(f"imdbId:{imdb_id}")
+    if season_id  not in (None, ""): parts.append(f"seasonId:{season_id}")
+    if episode_id not in (None, ""): parts.append(f"episodeId:{episode_id}")
     if not parts: raise ValueError("No content info for hash")
     content = "|".join(parts).encode()
     first = hmac.new(HASH_PRIMARY.encode(),   content,        hashlib.sha256).hexdigest()
@@ -151,10 +148,10 @@ def find_meta_in_html(html):
     joined = "\n".join(candidates)
     meta = {}
     for k, pat in {
-        "imdb_id":      r'"imdb_id"\s*:\s*"([^"]+)"',
-        "title":        r'"title"\s*:\s*"([^"]+)"',
-        "name":         r'"name"\s*:\s*"([^"]+)"',
-        "release_date": r'"release_date"\s*:\s*"([^"]+)"',
+        "imdb_id":       r'"imdb_id"\s*:\s*"([^"]+)"',
+        "title":         r'"title"\s*:\s*"([^"]+)"',
+        "name":          r'"name"\s*:\s*"([^"]+)"',
+        "release_date":  r'"release_date"\s*:\s*"([^"]+)"',
         "first_air_date":r'"first_air_date"\s*:\s*"([^"]+)"',
     }.items():
         found = re.search(pat, joined)
@@ -165,7 +162,7 @@ def fetch_json(session, url, steps, timeout=20):
     t0 = now_ms()
     r = session.get(url, timeout=timeout, allow_redirects=True)
     steps.append({"method":"GET","url":url,"status":r.status_code,
-                  "elapsed_ms":now_ms()-t0,"content_type":r.headers.get("content-type","")})
+                  "elapsed_ms":now_ms()-t0})
     r.raise_for_status()
     return r.json()
 
@@ -173,7 +170,7 @@ def fetch_text(session, url, steps, timeout=20):
     t0 = now_ms()
     r = session.get(url, timeout=timeout, allow_redirects=True)
     steps.append({"method":"GET","url":url,"status":r.status_code,
-                  "elapsed_ms":now_ms()-t0,"content_type":r.headers.get("content-type","")})
+                  "elapsed_ms":now_ms()-t0})
     r.raise_for_status()
     return r.text
 
@@ -254,14 +251,14 @@ def source_list(payload):
     if isinstance(payload, dict):
         s = payload.get("sources")
         if isinstance(s, dict): return s
-        if isinstance(s, list): return {str(i): item for i,item in enumerate(s)}
+        if isinstance(s, list): return {str(i):item for i,item in enumerate(s)}
     return {}
 
 def resolve(input_url, *, media_type=None, season=None, episode=None):
-    t0    = now_ms()
-    steps = []
-    errors= []
-    result= {
+    t0     = now_ms()
+    steps  = []
+    errors = []
+    result = {
         "status":"started","ids":{},"metadata":{},"sources":{},
         "media_urls":{"m3u8":[],"mpd":[],"mp4":[],"iframe_or_embed":[],
                       "proxy_urls":[],"decoded_proxy_targets":[],"other_resources":[]},
@@ -283,7 +280,7 @@ def resolve(input_url, *, media_type=None, season=None, episode=None):
 
     session = make_session()
     try:
-        meta   = fetch_metadata(session, tmdb_id, media_type, input_url, steps)
+        meta = fetch_metadata(session, tmdb_id, media_type, input_url, steps)
         result["metadata"] = {
             "title":   meta.get("title") or meta.get("name"),
             "imdb_id": meta.get("imdb_id") or (meta.get("external_ids") or {}).get("imdb_id"),
@@ -303,12 +300,10 @@ def resolve(input_url, *, media_type=None, season=None, episode=None):
                     errors.append(f"{sname}: {e}")
 
         result["sources"] = sources
-        urls = extract_urls(payload if sources else {"sources": sources})
-        # also extract from sources dict directly
+        urls = extract_urls(payload)
         urls += extract_urls(sources)
         classified = classify_urls(list(dict.fromkeys(urls)))
         result["media_urls"] = classified
-
         result["status"] = "resolved" if (sources or any(v for v in classified.values())) else "no_sources_found"
     except Exception as e:
         result["status"] = "error"
@@ -317,7 +312,7 @@ def resolve(input_url, *, media_type=None, season=None, episode=None):
     result["elapsed_ms"] = now_ms() - t0
     return result
 
-# ── HTML UI ────────────────────────────────────────────────────────────────────
+
 HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -325,266 +320,164 @@ HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CinemaOS Resolver</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh;padding:0 0 60px}
-
-  /* ── Header ── */
-  header{background:linear-gradient(135deg,#1a0000 0%,#0d0d0d 60%);border-bottom:1px solid #2a0000;padding:32px 24px 28px;text-align:center}
-  header h1{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-0.5px}
-  header h1 span{color:#e50914}
-  header p{color:#777;margin-top:6px;font-size:.93rem}
-
-  /* ── Search form ── */
-  .search-wrap{max-width:680px;margin:32px auto 0;padding:0 16px}
-  .search-box{background:#161616;border:1px solid #2a2a2a;border-radius:16px;padding:24px}
-  .field-row{display:flex;gap:12px;flex-wrap:wrap}
-  .field{flex:1;min-width:140px}
-  .field.grow{flex:2;min-width:260px}
-  label{display:block;font-size:.78rem;color:#777;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
-  input,select{width:100%;padding:11px 14px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:10px;color:#e0e0e0;font-size:.93rem;outline:none;transition:border .15s}
-  input:focus,select:focus{border-color:#e50914}
-  select option{background:#161616}
-  .btn-resolve{margin-top:16px;width:100%;padding:13px;background:#e50914;color:#fff;font-size:1rem;font-weight:700;border:none;border-radius:10px;cursor:pointer;letter-spacing:.02em;transition:background .15s}
-  .btn-resolve:hover{background:#c0070f}
-  .btn-resolve:disabled{background:#2a2a2a;color:#555;cursor:not-allowed}
-
-  /* ── Spinner ── */
-  .spinner{display:none;text-align:center;padding:32px 0;color:#555;font-size:.9rem}
-  .spinner.on{display:block}
-  .spin-ring{width:36px;height:36px;border:3px solid #222;border-top-color:#e50914;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  /* ── Results wrapper ── */
-  #result{max-width:680px;margin:28px auto 0;padding:0 16px}
-
-  /* ── Info banner ── */
-  .info-banner{border-radius:14px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
-  .info-banner.ok{background:#0d1f0d;border:1px solid #1a3a1a}
-  .info-banner.err{background:#1f0d0d;border:1px solid #3a1a1a}
-  .info-banner.warn{background:#1a1a0d;border:1px solid #3a3a1a}
-  .status-icon{font-size:2rem;flex-shrink:0}
-  .info-title{font-size:1.1rem;font-weight:700;color:#fff}
-  .info-meta{margin-top:6px;display:flex;flex-wrap:wrap;gap:8px}
-  .chip{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:3px 10px;font-size:.78rem;color:#aaa}
-  .chip b{color:#e0e0e0}
-  .err-msg{color:#e05050;font-size:.85rem;margin-top:8px}
-
-  /* ── Section ── */
-  .section{margin-bottom:16px}
-  .section-header{display:flex;align-items:center;gap:10px;padding:12px 0 10px;border-bottom:1px solid #1a1a1a;margin-bottom:12px}
-  .section-icon{font-size:1.1rem}
-  .section-title{font-size:.9rem;font-weight:700;color:#ccc;flex:1}
-  .section-count{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:999px;padding:2px 10px;font-size:.75rem;color:#888;font-weight:600}
-
-  /* ── Stream cards ── */
-  .stream-grid{display:flex;flex-direction:column;gap:8px}
-  .stream-card{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color .15s}
-  .stream-card:hover{border-color:#333}
-  .stream-num{background:#1a1a1a;border:1px solid #252525;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#666;flex-shrink:0}
-  .stream-info{flex:1;min-width:0}
-  .stream-type{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
-  .stream-type.m3u8{color:#4caf50}
-  .stream-type.mpd{color:#2196f3}
-  .stream-type.mp4{color:#ff9800}
-  .stream-type.other{color:#9c27b0}
-  .stream-url{font-size:.78rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .stream-actions{display:flex;gap:6px;flex-shrink:0}
-  .btn-copy{background:#1a1a1a;color:#aaa;border:1px solid #2a2a2a;border-radius:7px;padding:6px 12px;font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
-  .btn-copy:hover{background:#e50914;color:#fff;border-color:#e50914}
-  .btn-open{background:transparent;color:#555;border:1px solid #222;border-radius:7px;padding:6px 10px;font-size:.75rem;cursor:pointer;text-decoration:none;display:flex;align-items:center;transition:all .15s}
-  .btn-open:hover{color:#e0e0e0;border-color:#444}
-
-  /* ── Stats bar ── */
-  .stats-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
-  .stat{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:10px 16px;font-size:.8rem;color:#666;flex:1;text-align:center;min-width:100px}
-  .stat b{display:block;font-size:1.1rem;color:#ccc;margin-bottom:2px}
-
-  /* ── Empty ── */
-  .empty{text-align:center;padding:40px 0;color:#444;font-size:.9rem}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0d0d0d;color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px}
+h1{font-size:1.8rem;color:#e50914;margin-bottom:6px}
+p.sub{color:#888;margin-bottom:30px;font-size:.95rem}
+.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:28px;width:100%;max-width:600px}
+label{display:block;font-size:.82rem;color:#aaa;margin-top:14px;margin-bottom:4px}
+input,select{width:100%;padding:10px 12px;background:#111;border:1px solid #333;border-radius:8px;color:#e0e0e0;font-size:.95rem;outline:none}
+input:focus,select:focus{border-color:#e50914}
+.row{display:flex;gap:12px}.row>div{flex:1}
+button{margin-top:22px;width:100%;padding:12px;background:#e50914;color:#fff;font-size:1rem;font-weight:600;border:none;border-radius:8px;cursor:pointer}
+button:hover{background:#c0070f}
+button:disabled{background:#444;cursor:not-allowed}
+#result{margin-top:28px;width:100%;max-width:600px}
+.box{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:20px;margin-bottom:16px}
+.box h2{font-size:.95rem;color:#aaa;margin-bottom:12px}
+.meta-row{display:flex;gap:16px;flex-wrap:wrap;font-size:.87rem;margin-bottom:4px}
+.meta-row span{color:#888}.meta-row b{color:#e0e0e0}
+.url-item{background:#111;border:1px solid #222;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.82rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.url-item a{color:#4fc3f7;text-decoration:none;flex:1;word-break:break-all}
+.url-item a:hover{text-decoration:underline}
+.cbtn{background:#2a2a2a;color:#ccc;border:none;border-radius:6px;padding:5px 12px;font-size:.75rem;cursor:pointer;white-space:nowrap}
+.cbtn:hover{background:#e50914;color:#fff}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:600;margin-left:8px;background:#1a3a1a;color:#4caf50}
+.ok{color:#4caf50}.err{color:#e50914;font-size:.88rem;margin-top:6px}
+.spinner{display:none;text-align:center;color:#888;margin-top:20px;font-size:.9rem}
+.spinner.on{display:block}
 </style>
 </head>
 <body>
+<h1>🎬 CinemaOS Resolver</h1>
+<p class="sub">Resolve stream URLs from CinemaOS-style players</p>
 
-<header>
-  <h1>🎬 Cinema<span>OS</span> Resolver</h1>
-  <p>Resolve stream URLs from CinemaOS-style players instantly</p>
-</header>
+<div class="card">
+  <label>Player URL or TMDB ID</label>
+  <input id="inp_url" type="text" placeholder="https://cinemaos.tech/player/254  or just  254"/>
 
-<div class="search-wrap">
-  <div class="search-box">
-    <div class="field-row">
-      <div class="field grow">
-        <label>Player URL or TMDB ID</label>
-        <input id="url" type="text" placeholder="https://cinemaos.tech/player/254  or  254"/>
-      </div>
-      <div class="field">
-        <label>Media Type</label>
-        <select id="type" onchange="toggleEp()">
-          <option value="movie">🎬 Movie</option>
-          <option value="tv">📺 TV Show</option>
-        </select>
-      </div>
-    </div>
-    <div class="field-row" id="ep-row" style="display:none;margin-top:12px">
-      <div class="field">
-        <label>Season</label>
-        <input id="season" type="number" value="1" min="1"/>
-      </div>
-      <div class="field">
-        <label>Episode</label>
-        <input id="episode" type="number" value="1" min="1"/>
-      </div>
-    </div>
-    <button class="btn-resolve" id="btn" onclick="runResolve()">⚡ Resolve Stream</button>
+  <label>Media Type</label>
+  <select id="inp_type" onchange="toggleEpisode()">
+    <option value="movie">Movie</option>
+    <option value="tv">TV Show</option>
+  </select>
+
+  <div class="row" id="ep_row" style="display:none">
+    <div><label>Season</label><input id="inp_season" type="number" value="1" min="1"/></div>
+    <div><label>Episode</label><input id="inp_episode" type="number" value="1" min="1"/></div>
   </div>
-  <div class="spinner" id="spinner">
-    <div class="spin-ring"></div>
-    Resolving stream sources… this may take a few seconds
-  </div>
+
+  <button id="go_btn" onclick="startResolve()">⚡ Resolve Stream</button>
+  <div class="spinner" id="spin_el">⏳ Resolving… please wait</div>
 </div>
 
-<div id="result"></div>
+<div id="result_el"></div>
 
 <script>
-function toggleEp(){
-  document.getElementById('ep-row').style.display=
-    document.getElementById('type').value==='tv'?'flex':'none';
+function toggleEpisode(){
+  var t=document.getElementById('inp_type').value;
+  document.getElementById('ep_row').style.display=(t==='tv')?'flex':'none';
 }
 
-function esc(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-async function runResolve(){
-  const urlVal=document.getElementById('url').value.trim();
+function startResolve(){
+  var urlVal=document.getElementById('inp_url').value.trim();
   if(!urlVal){alert('Please enter a URL or TMDB ID');return;}
-  const type=document.getElementById('type').value;
-  const season=document.getElementById('season').value;
-  const episode=document.getElementById('episode').value;
-  const btn=document.getElementById('btn');
-  const spinner=document.getElementById('spinner');
-  const result=document.getElementById('result');
-  btn.disabled=true;
-  spinner.classList.add('on');
-  result.innerHTML='';
+  var mtype=document.getElementById('inp_type').value;
+  var season=document.getElementById('inp_season').value;
+  var episode=document.getElementById('inp_episode').value;
 
-  let apiUrl=`/resolve?url=${encodeURIComponent(urlVal)}&type=${type}`;
-  if(type==='tv') apiUrl+=`&season=${season}&episode=${episode}`;
+  document.getElementById('go_btn').disabled=true;
+  document.getElementById('spin_el').classList.add('on');
+  document.getElementById('result_el').innerHTML='';
 
-  try{
-    const res = await fetch(apiUrl);
-    const text = await res.text();
-    let d;
-    try{ d = JSON.parse(text); }
-    catch(je){
-      result.innerHTML = '<div style="padding:24px;color:#e05050;background:#1a0d0d;border-radius:12px;margin-top:20px">⚠️ Server returned unexpected response:<br><pre style="margin-top:8px;font-size:.75rem;overflow:auto">'+text.slice(0,500)+'</pre></div>';
-      return;
-    }
-    result.innerHTML = renderResult(d);
-  }catch(e){
-    result.innerHTML = '<div style="padding:24px;color:#e05050;background:#1a0d0d;border-radius:12px;margin-top:20px">❌ Request failed: '+e.message+'</div>';
-  }finally{
-    btn.disabled = false;
-    spinner.classList.remove('on');
-  }
+  var qs='url='+encodeURIComponent(urlVal)+'&type='+encodeURIComponent(mtype);
+  if(mtype==='tv') qs+='&season='+season+'&episode='+episode;
+
+  fetch('/resolve?'+qs)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      document.getElementById('result_el').innerHTML=buildHTML(d);
+    })
+    .catch(function(e){
+      document.getElementById('result_el').innerHTML='<div class="box"><p class="err">❌ '+e.message+'</p></div>';
+    })
+    .finally(function(){
+      document.getElementById('go_btn').disabled=false;
+      document.getElementById('spin_el').classList.remove('on');
+    });
 }
 
-function renderResult(d){
-  const status=d.status||'unknown';
-  const isOk=status==='resolved';
-  const isErr=status.includes('error')||status.includes('fail');
-  const bannerClass=isOk?'ok':isErr?'err':'warn';
-  const icon=isOk?'✅':isErr?'❌':'⚠️';
-  const statusLabel=isOk?'Resolved':status==='no_sources_found'?'No Sources Found':status;
-  const meta=d.metadata||{};
-  const ids=d.ids||{};
+function buildHTML(d){
+  var html='<div class="box">';
+  var status=d.status||'unknown';
+  var isOk=(status==='resolved');
+  html+='<p style="font-weight:700;font-size:1rem;color:'+(isOk?'#4caf50':'#e50914')+'">'+
+        (isOk?'✅ Resolved':'⚠️ '+status)+'</p>';
 
-  let html=`<div class="info-banner ${bannerClass}">
-    <div class="status-icon">${icon}</div>
-    <div style="flex:1;min-width:0">
-      <div class="info-title">${esc(meta.title||'Unknown Title')} ${meta.year?'('+esc(meta.year)+')':''}</div>
-      <div class="info-meta">
-        ${meta.imdb_id?`<span class="chip">IMDb <b>${esc(meta.imdb_id)}</b></span>`:''}
-        <span class="chip">Type <b>${esc(ids.type||'—')}</b></span>
-        ${ids.season?`<span class="chip">S<b>${esc(ids.season)}</b> E<b>${esc(ids.episode||'?')}</b></span>`:''}
-        <span class="chip">Status <b>${esc(statusLabel)}</b></span>
-      </div>
-      ${(d.errors||[]).map(e=>`<div class="err-msg">⚠️ ${esc(e)}</div>`).join('')}
-    </div>
-  </div>`;
+  var m=d.metadata||{};
+  if(m.title){
+    html+='<div class="meta-row" style="margin-top:10px">'+
+      '<span>Title: <b>'+esc(m.title)+'</b></span>'+
+      (m.year?'<span>Year: <b>'+esc(m.year)+'</b></span>':'')+
+      (m.imdb_id?'<span>IMDb: <b>'+esc(m.imdb_id)+'</b></span>':'')+
+      '<span>Type: <b>'+esc((d.ids||{}).type||'')+'</b></span>'+
+    '</div>';
+  }
+  var errs=d.errors||[];
+  errs.forEach(function(e){html+='<p class="err">⚠️ '+esc(e)+'</p>';});
+  html+='</div>';
 
-  const mu=d.media_urls||{};
-  const groups=[
-    ['m3u8','🎞','HLS Streams','m3u8'],
-    ['mpd','📦','DASH Streams','mpd'],
-    ['mp4','🎬','MP4 Files','mp4'],
-    ['decoded_proxy_targets','🔗','Proxy Targets','other'],
-    ['iframe_or_embed','🖼','Embeds','other'],
-    ['other_resources','📎','Other Resources','other'],
+  var mu=d.media_urls||{};
+  var groups=[
+    ['m3u8','🎞 HLS Streams'],
+    ['mpd','📦 DASH Streams'],
+    ['mp4','🎬 MP4 Files'],
+    ['decoded_proxy_targets','🔗 Proxy Targets'],
+    ['iframe_or_embed','🖼 Embeds'],
+    ['other_resources','📎 Other'],
   ];
-
-  let totalStreams=0;
-  let sectionsHtml='';
-
-  for(const [key,icon2,label,typeClass] of groups){
-    const urls=mu[key]||[];
-    if(!urls.length) continue;
-    totalStreams+=urls.length;
-    sectionsHtml+=`<div class="section">
-      <div class="section-header">
-        <span class="section-icon">${icon2}</span>
-        <span class="section-title">${label}</span>
-        <span class="section-count">${urls.length}</span>
-      </div>
-      <div class="stream-grid">`;
-    urls.forEach((u,i)=>{
-      const ext=u.includes('.m3u8')?'M3U8':u.includes('.mpd')?'MPD':u.includes('.mp4')?'MP4':'URL';
-      const safe=esc(u);
-      const safeJs=u.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      sectionsHtml+=`<div class="stream-card">
-        <div class="stream-num">${i+1}</div>
-        <div class="stream-info">
-          <div class="stream-type ${typeClass}">${ext}</div>
-          <div class="stream-url" title="${safe}">${safe}</div>
-        </div>
-        <div class="stream-actions">
-          <button class="btn-copy" onclick="cp('${safeJs}',this)">Copy</button>
-          <a class="btn-open" href="${safe}" target="_blank" rel="noopener" title="Open">↗</a>
-        </div>
-      </div>`;
+  var total=0;
+  groups.forEach(function(g){
+    var key=g[0],label=g[1];
+    var urls=mu[key]||[];
+    if(!urls.length) return;
+    total+=urls.length;
+    html+='<div class="box"><h2>'+label+' <span class="badge">'+urls.length+'</span></h2>';
+    urls.forEach(function(u,i){
+      var su=esc(u);
+      html+='<div class="url-item">'+
+        '<a href="'+su+'" target="_blank" rel="noopener">#'+(i+1)+' '+su+'</a>'+
+        '<button class="cbtn" onclick="copyURL(\''+su.replace(/'/g,"\\'")+'\'  ,this)">Copy</button>'+
+      '</div>';
     });
-    sectionsHtml+=`</div></div>`;
+    html+='</div>';
+  });
+
+  if(!total){
+    html+='<div class="box"><p style="color:#888">No playable stream URLs found.</p></div>';
   }
 
-  if(!totalStreams){
-    sectionsHtml=`<div class="empty">😕 No playable stream URLs were found for this title.</div>`;
-  }
-
-  html+=sectionsHtml;
-
-  html+=`<div class="stats-bar">
-    <div class="stat"><b>${totalStreams}</b>streams found</div>
-    <div class="stat"><b>${d.elapsed_ms||0}ms</b>resolve time</div>
-    <div class="stat"><b>${(d.request_steps||[]).length}</b>API requests</div>
-  </div>`;
-
+  html+='<div class="box" style="font-size:.82rem;color:#666">'+
+    '⏱ '+( d.elapsed_ms||0)+'ms &nbsp;·&nbsp; '+((d.request_steps||[]).length)+' requests'+
+  '</div>';
   return html;
 }
 
-function cp(url,btn){
-  navigator.clipboard.writeText(url);
-  const orig=btn.textContent;
-  btn.textContent='✓ Copied';
-  btn.style.background='#1a3a1a';
-  btn.style.color='#4caf50';
-  btn.style.borderColor='#1a3a1a';
-  setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.color='';btn.style.borderColor='';},2000);
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function copyURL(url,btn){
+  navigator.clipboard.writeText(url).then(function(){
+    btn.textContent='✓ Copied';
+    setTimeout(function(){btn.textContent='Copy';},2000);
+  });
 }
 </script>
 </body>
 </html>"""
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
 def root():
     return HTMLResponse(content=HTML, status_code=200)
